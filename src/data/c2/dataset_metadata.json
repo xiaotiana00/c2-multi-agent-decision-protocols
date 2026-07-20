@@ -1,0 +1,30 @@
+{
+  "benchmark_name": "Author-constructed controlled C2 decision benchmark",
+  "dataset_version": "v4",
+  "dataset_file": "c2_decision_v4.jsonl",
+  "dataset_sha256": "69d4115344a03da80c9f1d021fc2373145fb77c841956cd9f32f7184b54c0ca3",
+  "scenario_count": 100,
+  "scenario_type_count": 20,
+  "options_per_scenario": 4,
+  "preliminary_drafting_checkpoint": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+  "llm_role": "Preliminary scenario descriptions and candidate actions only",
+  "human_review": {
+    "reviewer_count": 5,
+    "author_reviewer_count": 2,
+    "background": "C2-related professional experience and doctoral-level training in military-related fields",
+    "procedure": "Independent review followed by joint discussion to resolve disagreements",
+    "pre_consensus_judgments_retained": false
+  },
+  "annotation_fields": [
+    "reference action",
+    "high-risk distractor",
+    "catastrophic-risk option",
+    "mission gain",
+    "collateral risk",
+    "exposure risk",
+    "delay cost",
+    "rules-of-engagement risk",
+    "catastrophic risk"
+  ],
+  "inference_boundary": "Reference labels, risk labels, catastrophic labels, and human-assigned numeric profiles are evaluation-only and are not exposed in reported main-run inference."
+}
