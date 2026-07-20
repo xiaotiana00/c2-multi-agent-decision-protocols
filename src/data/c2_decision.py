@@ -22,8 +22,8 @@ def _normalize_record(item):
 
 def _candidate_paths(args):
     module_dir = Path(__file__).resolve().parent
-    bundled_c2_dir = module_dir / "c2"
     project_root = module_dir.parent.parent
+    bundled_data_dir = project_root / "data"
     cwd = Path.cwd()
     data_dir = getattr(args, "data_dir", None)
     explicit = getattr(args, "c2_data_file", None)
@@ -38,9 +38,7 @@ def _candidate_paths(args):
         candidates.extend([explicit_path, cwd / explicit_path])
         if explicit_path.name:
             candidates.extend([
-                module_dir / explicit_path.name,
-                bundled_c2_dir / explicit_path.name,
-                project_root / explicit_path.name,
+                bundled_data_dir / explicit_path.name,
             ])
     else:
         if data_dir:
@@ -53,12 +51,8 @@ def _candidate_paths(args):
             ])
 
         for base in [
-            bundled_c2_dir,
-            module_dir,
-            cwd / "src" / "data" / "c2",
-            cwd / "src" / "data",
-            project_root / "src" / "data" / "c2",
-            project_root / "src" / "data",
+            bundled_data_dir,
+            cwd / "data",
         ]:
             candidates.append(base / DATASET_FILE)
 

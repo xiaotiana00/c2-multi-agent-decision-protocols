@@ -5,7 +5,7 @@ This repository contains the implementation used for the controlled C2 protocol 
 ## Repository Contents
 
 - `src/`: C2 dataset loading, prompts, aggregation, adjudication, and model backends.
-- `src/data/c2/`: the 100-scenario C2 v4 dataset and its integrity metadata.
+- `data/`: the 100-scenario C2 v4 dataset and its integrity metadata.
 - `scripts/`: experiment runners, manifest checks, dataset checks, and result summarization.
 - `tests/`: protocol-alignment and implementation tests.
 
@@ -26,7 +26,7 @@ Role-conditioned agents receive the shared scenario and only their own private n
 
 ## Data Boundary
 
-The reported runs use `src/data/c2/c2_decision_v4.jsonl`. Reference actions, high-risk labels, catastrophic-risk labels, and human-assigned numeric profiles are used for construction and evaluation only. Main decision runs derive heuristic profiles from scenario text, candidate actions, and structured agent responses.
+The reported runs use `data/c2_decision_v4.jsonl`. Reference actions, high-risk labels, catastrophic-risk labels, and human-assigned numeric profiles are used for construction and evaluation only. Main decision runs derive heuristic profiles from scenario text, candidate actions, and structured agent responses.
 
 ## Running the Experiments
 
@@ -49,6 +49,6 @@ The Qwen command runs the nine main rows and both reported ablations. The Ollama
 
 ```powershell
 python -m pytest -q
-python scripts/audit_c2_dataset.py --data_file src/data/c2/c2_decision_v4.jsonl --epsilon 0.25
+python scripts/audit_c2_dataset.py --data_file data/c2_decision_v4.jsonl --epsilon 0.25
 python scripts/audit_c2_manifest.py out_paper_qwen/paper_manifest.jsonl
 ```
