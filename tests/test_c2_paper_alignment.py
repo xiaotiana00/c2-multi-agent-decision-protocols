@@ -26,7 +26,7 @@ from c2_decision_utils import (
 from data.c2_decision import load_data as load_c2_data
 from model import model_utils
 from scripts import run_c2_paper
-from scripts.summarize_c2_runs import history_metrics
+from scripts.summarize_c2_runs import history_metrics, summarize_group
 
 
 def _args(**overrides):
@@ -185,6 +185,31 @@ def test_confidence_weighted_vote_and_consensus_bonus_match_paper_rule():
 def test_answer_change_uses_only_agents_valid_in_both_rounds():
     assert experiment_main._answer_change_rate(["(A)", "", "(C)"], ["(B)", "(A)", ""]) == 1.0
     assert experiment_main._answer_change_rate(["", ""], ["(A)", "(B)"]) == 0.0
+    assert experiment_main._answer_change_counts(["(A)", "", "(C)"], ["(B)", "(A)", ""]) == (1, 1)
+
+
+def test_seed_summary_uses_sample_standard_deviation():
+    result = summarize_group([0.87, 0.88, 0.85])
+    assert result["mean"] == pytest.approx(0.8666666667)
+    assert result["std"] == pytest.approx(0.0152752523)
+    assert summarize_group([0.95])["std"] == 0.0
+
+
+def test_history_change_rate_pools_valid_agent_pairs(tmp_path):
+    answers = [
+        (["(A)", "(B)", ""], ["(B)", "(B)", "(C)"], 0.5),
+        (["(A)", "", ""], ["(A)", "(B)", ""], 0.0),
+    ]
+    history = tmp_path / "history.jsonl"
+    with history.open("w", encoding="utf-8") as handle:
+        for sample_id, (initial, final, stored_rate) in enumerate(answers):
+            row = {"sample_id": sample_id, "rounds": {
+                "0": {"aggregate_answer_iscorr": True, "final_answers": initial},
+                "1": {"aggregate_answer_iscorr": True, "final_answers": final,
+                      "answer_change_rate": stored_rate},
+            }}
+            handle.write(json.dumps(row) + "\n")
+    assert history_metrics(str(history))["final_change_rate"] == pytest.approx(1 / 3)
 
 
 def test_heuristic_profiles_ignore_gold_numeric_profiles_and_hidden_weights():

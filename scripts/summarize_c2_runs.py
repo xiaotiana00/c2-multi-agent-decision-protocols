@@ -4,7 +4,7 @@ import json
 import math
 from collections import defaultdict
 from pathlib import Path
-from statistics import mean, pstdev
+from statistics import mean, stdev
 import random
 import sys
 
@@ -23,10 +23,6 @@ def load_jsonl(path):
     return rows
 
 
-def _last_round_key(rounds: dict):
-    return sorted(rounds.keys(), key=lambda x: int(x))[-1]
-
-
 def history_metrics(history_path: str):
     rows = load_jsonl(history_path)
     if not rows:
@@ -36,6 +32,10 @@ def history_metrics(history_path: str):
     final_cat = []
     final_dis = []
     final_change = []
+    changed_agent_pairs = 0
+    valid_agent_pairs = 0
+    paired_change_available = True
+    has_debate_round = False
     round0_correct = []
     total_final_outputs = 0
     unrecoverable_final_outputs = 0
@@ -44,7 +44,8 @@ def history_metrics(history_path: str):
     for row in rows:
         rounds = row["rounds"]
         r0 = rounds["0"]
-        rk = _last_round_key(rounds)
+        round_keys = sorted(rounds, key=int)
+        rk = round_keys[-1]
         rf = rounds[rk]
         round0_correct.append(int(bool(r0.get("aggregate_answer_iscorr"))))
         final_correct.append(int(bool(rf.get("aggregate_answer_iscorr"))))
@@ -52,6 +53,16 @@ def history_metrics(history_path: str):
         final_cat.append(int(bool(rf.get("catastrophic_hit"))))
         final_dis.append(float(rf.get("disagreement_rate", 0.0)))
         final_change.append(float(rf.get("answer_change_rate", 0.0)))
+        if len(round_keys) > 1:
+            has_debate_round = True
+            previous = rounds[round_keys[-2]].get("final_answers")
+            current = rf.get("final_answers")
+            if isinstance(previous, list) and isinstance(current, list) and len(previous) == len(current):
+                pairs = [(a, b) for a, b in zip(previous, current) if a and b]
+                changed_agent_pairs += sum(a != b for a, b in pairs)
+                valid_agent_pairs += len(pairs)
+            else:
+                paired_change_available = False
         parsed_responses = rf.get("parsed_responses") or {}
         auditable_responses = [
             parsed for parsed in parsed_responses.values()
@@ -79,7 +90,9 @@ def history_metrics(history_path: str):
         "final_risk_rate": mean(final_risk),
         "final_cat_rate": mean(final_cat),
         "final_disagreement": mean(final_dis),
-        "final_change_rate": mean(final_change),
+        "final_change_rate": (
+            changed_agent_pairs / valid_agent_pairs if valid_agent_pairs else 0.0
+        ) if has_debate_round and paired_change_available else mean(final_change),
         "total_final_agent_outputs": total_final_outputs,
         "unrecoverable_final_outputs": unrecoverable_final_outputs,
         "schema_invalid_final_outputs": schema_invalid_final_outputs,
@@ -92,7 +105,7 @@ def summarize_group(values):
         return {"mean": None, "std": None}
     if len(values) == 1:
         return {"mean": values[0], "std": 0.0}
-    return {"mean": mean(values), "std": pstdev(values)}
+    return {"mean": mean(values), "std": stdev(values)}
 
 
 def paired_bootstrap_diff(a_rows, b_rows, key="final_correct", iters=4000, seed=1234):

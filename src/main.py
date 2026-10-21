@@ -199,13 +199,16 @@ def _round_mean(rows):
     ]
 
 
-def _answer_change_rate(previous, current):
+def _answer_change_counts(previous, current):
     if not previous or not current or len(previous) != len(current):
-        return 0.0
+        return 0, 0
     valid_pairs = [(a, b) for a, b in zip(previous, current) if a and b]
-    if not valid_pairs:
-        return 0.0
-    return sum(a != b for a, b in valid_pairs) / len(valid_pairs)
+    return sum(a != b for a, b in valid_pairs), len(valid_pairs)
+
+
+def _answer_change_rate(previous, current):
+    changed, valid = _answer_change_counts(previous, current)
+    return changed / valid if valid else 0.0
 
 
 def _disagreement_rate(answers):
@@ -308,7 +311,9 @@ def main(args):
     config = _run_config(args, personas)
     histories = []
     correctness, risk_hits, catastrophic_hits = [], [], []
-    disagreement_rates, answer_change_rates = [], []
+    disagreement_rates = []
+    changed_agent_pairs = [0] * (args.debate_rounds + 1)
+    valid_agent_pairs = [0] * (args.debate_rounds + 1)
     started = time.time()
 
     for sample_index, (sample, answer) in tqdm(enumerate(zip(samples, labels)), total=len(samples)):
@@ -318,7 +323,7 @@ def main(args):
         responses = dict(zip(agent_names, generated))
         round_records = {}
         sample_correctness, sample_risk, sample_catastrophic = [], [], []
-        sample_disagreement, sample_changes = [], []
+        sample_disagreement = []
         previous_answers = None
         risk_option = _sample_option(sample, "risk_option")
         catastrophic_option = _sample_option(sample, "catastrophic_option")
@@ -336,7 +341,10 @@ def main(args):
             risk_hit = bool(risk_option and aggregate_answer == risk_option)
             catastrophic_hit = bool(catastrophic_option and aggregate_answer == catastrophic_option)
             disagreement = _disagreement_rate(final_answers)
-            change_rate = _answer_change_rate(previous_answers, final_answers) if previous_answers is not None else 0.0
+            changed, valid = _answer_change_counts(previous_answers, final_answers)
+            change_rate = changed / valid if valid else 0.0
+            changed_agent_pairs[round_index] += changed
+            valid_agent_pairs[round_index] += valid
             round_records[str(round_index)] = {
                 "responses": responses,
                 "parsed_responses": {name: parse_c2_response(text) for name, text in responses.items()},
@@ -357,7 +365,6 @@ def main(args):
             sample_risk.append(risk_hit)
             sample_catastrophic.append(catastrophic_hit)
             sample_disagreement.append(disagreement)
-            sample_changes.append(change_rate)
             previous_answers = final_answers
 
         histories.append({
@@ -373,7 +380,6 @@ def main(args):
         risk_hits.append(sample_risk)
         catastrophic_hits.append(sample_catastrophic)
         disagreement_rates.append(sample_disagreement)
-        answer_change_rates.append(sample_changes)
 
     method_name = f"{args.data}_{len(samples)}__{args.model}_N={args.num_agents}_R={args.debate_rounds}_S={args.solver}"
     if args.solver == "decision":
@@ -393,7 +399,10 @@ def main(args):
         "risk_rates": _round_boolean_rates(risk_hits),
         "catastrophic_rates": _round_boolean_rates(catastrophic_hits),
         "disagreement_rates": _round_mean(disagreement_rates),
-        "answer_change_rates": _round_mean(answer_change_rates),
+        "answer_change_rates": [
+            changed / valid if valid else 0.0
+            for changed, valid in zip(changed_agent_pairs, valid_agent_pairs)
+        ],
     }
     log_path = os.path.join(args.out_dir, "logs.tsv")
     write_header = not os.path.exists(log_path)
